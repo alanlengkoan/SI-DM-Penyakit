@@ -1,0 +1,160 @@
+<table border="1">
+  <thead>
+    <tr>
+      <th>Id Penyakit</th>
+      <th>Nama</th>
+      <th>Jenis</th>
+      <th>Kategori</th>
+      <th>Jumlah</th>
+      <th>Tanggal</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <?php
+
+    for ($row = 2; $row <= $baris; $row++){
+      //  Read a row of data into an array
+      $rowData = $sheet->rangeToArray('A' . $row . ':' . $kolom . $row,NULL,TRUE,FALSE);
+      $idpenyakit       = $rowData[0][0];
+      $namapenyakit     = $rowData[0][1];
+      $jenispenyakit    = $rowData[0][2];
+      $kategoripenyakit = $rowData[0][3];
+      $jumlahpenderita  = $rowData[0][4];
+      $tanggal          = $rowData[0][5];
+
+      echo "<tr>";
+      echo "<td>".$idpenyakit."</td>";
+      echo "<td>".$namapenyakit."</td>";
+      echo "<td>".$jenispenyakit."</td>";
+      echo "<td>".$kategoripenyakit."</td>";
+      echo "<td>".$jumlahpenderita."</td>";
+      echo "<td>".$tanggal."</td>";
+      echo "</tr>";
+
+     }
+
+    ?>
+
+  </tbody>
+</table>
+
+// konfigurasi file upload excel
+		$config['upload_path']   = './excel/';
+    $config['allowed_types'] = 'xlsx';
+    $config['max_size']      = '2048';
+    $config['overwrite']     = true;
+    $config['file_name']     = $inputFileName;
+
+		// untuk menload library upload
+		$this->load->library('upload', $config);
+		// load konfigurasi upload
+		$this->upload->initialize($config);
+
+		if ($this->upload->do_upload('format')) {
+
+      // jika berhasil
+			$data = $this->upload->data($inputFileName);
+      print_r($data);
+
+    } else {
+
+      // jika gagal
+			$error = array('error' => $this->upload->display_errors());
+			$this->load->view('admin/formupload', $error);
+
+    }
+
+// apabile file yang diugganh benar
+		$inputFileType = PHPExcel_IOFactory::identify($this->inputFileName);
+		$objReader     = PHPExcel_IOFactory::createReader($inputFileType);
+		$objPHPExcel   = $objReader->load($this->inputFileName);
+		// get worksheet dimensions
+		$sheet         = $objPHPExcel->getSheet(0);
+		// menghitung jumlah baris
+		$highestRow    = $sheet->getHighestRow();
+		// menghitung jumlah kolom
+		$highestColumn = $sheet->getHighestColumn();
+		// proses import data
+		for ($row = 2; $row <= $highestRow; $row++){
+
+			$rowData          = $sheet->rangeToArray('A' . $row . ':' . $highestColumn . $row, NULL, TRUE, FALSE);
+			$idpenyakit       = $rowData[0][0];
+			$namapenyakit     = $rowData[0][1];
+			$jenispenyakit    = $rowData[0][2];
+			$kategoripenyakit = $rowData[0][3];
+			$jumlahpenderita  = $rowData[0][4];
+			$tanggal          = $rowData[0][5];
+			$datapenyakit[] = array(
+				'nama_penyakit'     => $namapenyakit,
+				'jenis_penyakit'    => $jenispenyakit,
+				'kategori_penyakit' => $kategoripenyakit,
+				'jumlah_penderita'  => $jumlahpenderita,
+				'tanggal'           => $tanggal
+			);
+
+		}
+
+		// untuk memilih fungsi insert data
+		// insert batch digunakan untuk menginput data dalam array
+		$this->db->insert_batch('tb_nama_penyakit', $datapenyakit);
+		echo "Data Berhasil di Import";
+
+<select name="provinsi" id="provinsi">
+         <option value="">Pilih</option>
+
+         <?php
+         foreach($jenispenyakit as $data){ // Lakukan looping pada variabel siswa dari controller
+           echo "<option value='".$data['jenis_penyakit']."'>".$data['jenis_penyakit']."</option>";
+         }
+         ?>
+       </select>
+
+
+// untuk menload library upload
+    $this->load->library('upload');
+    // validasi untuk form
+    $this->form_validation->set_rules('inpketerangan', 'Keterangan', 'required');
+    $this->form_validation->set_rules('inpwaktu', 'Waktu', 'required');
+
+    if ($this->form_validation->run() == FALSE) {
+
+      // apa bila gagal
+      $data['waktu'] = date(DATE_RFC850, time());
+      // apa bila data yang dimasukkan kosong
+      $this->load->view('admin/format_laporan_tambah', $data);
+
+    } else {
+
+      // untuk mengecek apa bila data yang dimasukkan salah
+      if (!empty($_FILES['inpformat']['name'])) {
+
+        $namafile = $_FILES['inpformat']['name'];
+        $config['upload_path']   = './file/';
+        $config['allowed_types'] = 'xls|xlsx|csv';
+        $config['max_size']      = '2048';
+        $config['file_name']     = $namafile;
+
+        // untuk meginisialisasi
+        $this->upload->initialize($config);
+        // untuk melakukan upload
+        $this->upload->do_upload('inpformat');
+        // untuk mengambil hasil inputan
+        $data = array(
+          'nama_file'  => $namafile,
+          'keterangan' => $this->input->post('inpketerangan'),
+          'tgl_upload' => $this->input->post('inpwaktu')
+        );
+        // untuk memasukkan data kedalam tabel
+        $this->db->insert('tb_format_laporan', $data);
+        // untuk kembali ke halaman tampilkan data
+        redirect('forlap');
+
+      } else {
+
+        $error = array('error' => $this->upload->display_errors());
+        $this->load->view('admin/format_laporan_tambah', $error);
+
+      }
+
+    }
